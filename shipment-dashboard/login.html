@@ -1,0 +1,276 @@
+---
+layout: default
+title: 登录
+---
+
+<script>
+let translations = null;
+let currentLang = localStorage.getItem('language') || 'zh';
+
+async function loadTranslations() {
+    try {
+        const response = await fetch('/shipment-dashboard/data/translations.json');
+        translations = await response.json();
+        updateUILanguage();
+    } catch (error) {
+        console.error('Error loading translations:', error);
+    }
+}
+
+function updateUILanguage() {
+    const t = translations[currentLang].login;
+    document.querySelector('h1').textContent = t.title;
+    document.querySelector('label[for="username"]').innerHTML = `<span class="icon">&#128100;</span> ${t.username}`;
+    document.querySelector('label[for="password"]').innerHTML = `<span class="icon">&#128274;</span> ${t.password}`;
+    document.querySelector('label[for="role"]').innerHTML = `<span class="icon">&#128188;</span> ${t.role}`;
+    document.querySelector('select#role option[value="trader"]').textContent = t.trader;
+    document.querySelector('select#role option[value="customer"]').textContent = t.customer;
+    document.querySelector('button[type="submit"]').textContent = t.loginButton;
+}
+
+function changeLanguage(lang) {
+    currentLang = lang;
+    localStorage.setItem('language', lang);
+    updateUILanguage();
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadTranslations();
+    
+    // 如果已经登录，直接跳转到运单列表页面
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    if (user) {
+        window.location.href = '/shipment-dashboard/shipments.html';
+        return;
+    }
+
+    const form = document.getElementById('loginForm');
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const role = document.getElementById('role').value;
+
+        try {
+            // 获取用户数据
+            const response = await fetch('/shipment-dashboard/data/users.json');
+            const data = await response.json();
+            
+            // 验证用户
+            const user = data.users.find(u => 
+                u.username === username && 
+                u.password === password && 
+                u.role === role
+            );
+
+            if (user) {
+                // 创建用户会话数据（不包含密码）
+                const userData = {
+                    username: user.username,
+                    role: user.role,
+                    name: user.name,
+                    customerCode: user.customerCode || null,
+                    language: currentLang
+                };
+
+                // 保存用户信息到sessionStorage
+                sessionStorage.setItem('user', JSON.stringify(userData));
+                
+                // 跳转到订单列表页面
+                window.location.href = '/shipment-dashboard/orders.html';
+            } else {
+                showError(translations[currentLang].login.error);
+            }
+        } catch (error) {
+            showError(translations[currentLang].login.error);
+            console.error('Login error:', error);
+        }
+    });
+
+    function showError(message) {
+        const errorDiv = document.getElementById('error-message');
+        if (!errorDiv) {
+            const div = document.createElement('div');
+            div.id = 'error-message';
+            div.className = 'error-message';
+            form.insertBefore(div, form.firstChild);
+        }
+        document.getElementById('error-message').textContent = message;
+    }
+});
+</script>
+
+<div class="login-bg">
+  <div class="login-container">
+      <div class="login-box">
+          <div class="login-logo">
+              <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f69a.svg" alt="logo" />
+          </div>
+          <h1>运单管理系统</h1>
+          <div class="language-selector">
+              <button onclick="changeLanguage('zh')" class="lang-btn">中文</button>
+              <button onclick="changeLanguage('en')" class="lang-btn">English</button>
+              <button onclick="changeLanguage('hi')" class="lang-btn">हिंदी</button>
+              <button onclick="changeLanguage('th')" class="lang-btn">ไทย</button>
+          </div>
+          <form id="loginForm" class="login-form">
+              <div class="form-group">
+                  <label for="username"><span class="icon">&#128100;</span> 用户名</label>
+                  <input type="text" id="username" name="username" required autocomplete="username">
+              </div>
+              <div class="form-group">
+                  <label for="password"><span class="icon">&#128274;</span> 密码</label>
+                  <input type="password" id="password" name="password" required autocomplete="current-password">
+              </div>
+              <div class="form-group">
+                  <label for="role"><span class="icon">&#128188;</span> 角色</label>
+                  <select id="role" name="role" required>
+                      <option value="trader">贸易商</option>
+                      <option value="customer">客户</option>
+                  </select>
+              </div>
+              <button type="submit" class="btn-login">登录</button>
+          </form>
+      </div>
+  </div>
+</div>
+
+<style>
+.login-bg {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #e0e7ff 0%, #f6f8fa 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+.login-box {
+    background: #fff;
+    padding: 44px 36px 36px 36px;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px #0002;
+    width: 100%;
+    max-width: 410px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+.login-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 18px;
+}
+.login-logo img {
+    width: 54px;
+    height: 54px;
+    opacity: 0.85;
+}
+.login-box h1 {
+    text-align: center;
+    margin-bottom: 32px;
+    color: #333;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+.language-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+.lang-btn {
+    padding: 6px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: #f6f8fa;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+.lang-btn:hover {
+    background: #e1e4e8;
+    border-color: #0366d6;
+}
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    width: 100%;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.form-group label {
+    font-weight: 500;
+    color: #555;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.form-group input,
+.form-group select {
+    padding: 11px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    font-size: 16px;
+    background: #f6f8fa;
+    transition: border 0.2s;
+}
+.form-group input:focus,
+.form-group select:focus {
+    border: 1.5px solid #007bff;
+    outline: none;
+    background: #fff;
+}
+.btn-login {
+    background: linear-gradient(90deg, #007bff 60%, #4364f7 100%);
+    color: white;
+    padding: 13px 0;
+    border: none;
+    border-radius: 4px;
+    font-size: 17px;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-top: 8px;
+    box-shadow: 0 1px 4px #0001;
+    transition: background 0.2s;
+}
+.btn-login:hover {
+    background: linear-gradient(90deg, #0056b3 60%, #2743c7 100%);
+}
+.error-message {
+    color: #dc3545;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    text-align: center;
+    font-size: 15px;
+}
+@media (max-width: 600px) {
+    .login-box {
+        padding: 20px 6vw 18px 6vw;
+        max-width: 98vw;
+    }
+    .login-box h1 {
+        font-size: 1.2rem;
+    }
+    .language-selector {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+</style>
