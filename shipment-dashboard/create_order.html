@@ -3,6 +3,8 @@ layout: default
 title: 创建订单
 ---
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
 <script>
 let translations = null;
 let currentLang = 'zh';
@@ -131,6 +133,60 @@ document.addEventListener('DOMContentLoaded', async function() {
         // 跳转到订单列表页面
         window.location.href = '/shipment-dashboard/orders.html';
     });
+
+    // === 地图选点功能 ===
+    let map, marker, mapCallback, pickedLatLng;
+
+    function showMapPicker(callback) {
+        document.getElementById('mapModal').style.display = 'flex';
+        setTimeout(() => {
+            if (!map) {
+                // 初始化地图，设置中心点和缩放级别 (可以根据需要调整)
+                map = L.map('map').setView([34.0479, 100.6197], 4); // 示例中心点：中国中心附近
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 18,
+                }).addTo(map);
+                map.on('click', function(e) {
+                    if (marker) map.removeLayer(marker);
+                    marker = L.marker(e.latlng).addTo(map);
+                    pickedLatLng = e.latlng;
+                });
+            } else {
+                map.setView([34.0479, 100.6197], 4); // 示例中心点
+                if (marker) map.removeLayer(marker);
+            }
+            pickedLatLng = null;
+            map.invalidateSize(); // 确保地图在模态框中正确显示
+        }, 100); // 小延迟确保模态框完全显示
+        mapCallback = callback;
+    }
+
+    document.getElementById('mapCancelBtn').onclick = function() {
+        document.getElementById('mapModal').style.display = 'none';
+    };
+
+    document.getElementById('mapOkBtn').onclick = async function() {
+        if (!pickedLatLng) { alert(translations[currentLang].orders.selectLocationError); return; }
+        // 逆地理编码（用nominatim，简单实现）
+        let name = `${pickedLatLng.lat.toFixed(4)},${pickedLatLng.lng.toFixed(4)}`;
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pickedLatLng.lat}&lon=${pickedLatLng.lng}`);
+            const data = await res.json();
+            if (data && data.display_name) name = data.display_name;
+        } catch(e) {
+             console.error('逆地理编码失败:', e);
+        }
+        document.getElementById('mapModal').style.display = 'none';
+        if (mapCallback) mapCallback(name);
+    };
+
+    // 为"地图选点"按钮添加事件监听器
+    document.getElementById('pickLocationBtn').onclick = function() {
+        showMapPicker(function(selectedAddress) {
+            document.getElementById('deliveryAddress').value = selectedAddress;
+        });
+    };
+    // === 地图选点功能结束 ===
 });
 </script>
 
@@ -162,7 +218,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         <div class="form-group">
             <label for="deliveryAddress">收货地址：</label>
-            <textarea id="deliveryAddress" name="deliveryAddress" rows="3" required></textarea>
+            <input type="text" id="deliveryAddress" name="deliveryAddress" required readonly>
+            <button type="button" class="btn-secondary" id="pickLocationBtn" style="margin-top: 5px;">地图选点</button>
         </div>
 
         <div class="form-group">
@@ -258,5 +315,42 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 .btn-secondary:hover {
     background-color: #5a6268;
+}
+
+/* 地图模态框样式 */
+#mapModal {
+    display: none; /* 默认隐藏 */
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.4);
+    align-items: center;
+    justify-content: center;
+}
+
+#mapModal > div {
+    background: #fff;
+    padding: 16px;
+    border-radius: 8px;
+    max-width: 90vw;
+    max-height: 90vh;
+    position: relative;
+    display: flex; /* 使内部元素flex布局 */
+    flex-direction: column; /* 垂直排列 */
+}
+
+#map {
+    width: 500px; /* 地图容器大小 */
+    height: 400px;
+    flex-grow: 1; /* 地图填充剩余空间 */
+}
+
+#mapModal > div > div:last-child {
+     /* 按钮容器样式 */
+     margin-top: 8px;
+     text-align: right;
 }
 </style> 
