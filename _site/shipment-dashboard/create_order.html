@@ -265,6 +265,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     </form>
 </div>
 
+<!-- === 地图模态框 === -->
+<div id="mapModal" style="display:none;position:fixed;z-index:9999;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;">
+  <div style="background:#fff;padding:16px;border-radius:8px;max-width:90vw;max-height:90vh;position:relative;">
+    <div id="map" style="width:500px;height:400px;"></div>
+    <div style="margin-top:8px;text-align:right;">
+      <button id="mapCancelBtn" class="btn-secondary">取消</button>
+      <button id="mapOkBtn" class="btn-primary">确定</button>
+    </div>
+  </div>
+</div>
+<!-- === 地图模态框结束 === -->
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <style>
 .container {
     max-width: 800px;
