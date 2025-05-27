@@ -35,7 +35,9 @@
       "deliveryAddress": "收货地址",
       "contactPerson": "联系人",
       "contactPhone": "联系电话",
-      "remarks": "备注"
+      "remarks": "备注",
+      "customerCode": "客户代码",
+      "selectLocationError": "请在地图上选择位置"
     },
     "users": {
       "title": "用户列表",
@@ -101,7 +103,9 @@
       "deliveryAddress": "Delivery Address",
       "contactPerson": "Contact Person",
       "contactPhone": "Contact Phone",
-      "remarks": "Remarks"
+      "remarks": "Remarks",
+      "customerCode": "Customer Code",
+      "selectLocationError": "Please select a location on the map"
     },
     "users": {
       "title": "User List",
@@ -167,7 +171,9 @@
       "deliveryAddress": "डिलीवरी पता",
       "contactPerson": "संपर्क व्यक्ति",
       "contactPhone": "संपर्क फोन",
-      "remarks": "टिप्पणियां"
+      "remarks": "टिप्पणियां",
+      "customerCode": "ग्राहक कोड",
+      "selectLocationError": "कृपया नक्शे पर एक स्थान का चयन करें"
     },
     "users": {
       "title": "उपयोगकर्ता सूची",
@@ -233,7 +239,9 @@
       "deliveryAddress": "ที่อยู่จัดส่ง",
       "contactPerson": "ผู้ติดต่อ",
       "contactPhone": "เบอร์โทรติดต่อ",
-      "remarks": "หมายเหตุ"
+      "remarks": "หมายเหตุ",
+      "customerCode": "รหัสลูกค้า",
+      "selectLocationError": "โปรดเลือกตำแหน่งบนแผนที่"
     },
     "users": {
       "title": "รายชื่อผู้ใช้",
@@ -255,7 +263,7 @@
       "createTime": "เวลาที่สร้าง",
       "expectedDeliveryDate": "วันที่คาดว่าจะจัดส่ง",
       "productName": "ชื่อสินค้า",
-      "quantity": "จำนวน",
+      "quantity": "ปริมาณ",
       "unitPrice": "ราคาต่อหน่วย",
       "totalPrice": "ราคารวม",
       "customerCode": "รหัสลูกค้า",
