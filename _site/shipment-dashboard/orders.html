@@ -108,14 +108,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                     if (!response.ok) {
                         // 如果 orders.json 不存在或加载失败，返回空数组，不中断流程
                         console.warn('Could not load /shipment-dashboard/data/orders.json, possibly not found or empty. Proceeding with localStorage data.');
-                        return [];
+                        return { orders: [] }; // 加载失败时返回一个包含空数组的对象
                     }
                     return response.json();
                 })
                 .catch(error => {
                     console.error('Error fetching /shipment-dashboard/data/orders.json:', error);
-                    // 捕获错误并返回空数组，防止中断 Promise.all
-                    return [];
+                    return { orders: [] }; // 捕获错误时返回一个包含空数组的对象
                 }),
             Promise.resolve().then(() => {
                  // 从 localStorage 获取订单数据
@@ -123,21 +122,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return localOrders;
             })
         ])
-        .then(([jsonOrders, localOrders]) => {
+        .then(([jsonData, localOrders]) => { // 将 allOrders 改名为 jsonData，因为它是一个对象
+            let jsonOrders = jsonData.orders || []; // 从对象中取出 orders 数组，如果 jsonData 或 orders 不存在，则使用空数组
+
             // 合并来自 orders.json 和 localStorage 的订单
-            // 使用 Map 或 Set 来去重，避免重复显示同一个订单（如果订单有唯一ID）
-            // 假设订单对象有一个唯一的 'id' 属性
             const allOrdersMap = new Map();
             jsonOrders.forEach(order => allOrdersMap.set(order.id, order));
-            localOrders.forEach(order => allOrdersMap.set(order.id, order)); // 后添加的会覆盖同ID的，这可能不是最优，取决于需求
+            localOrders.forEach(order => allOrdersMap.set(order.id, order));
 
-            let orders = Array.from(allOrdersMap.values()); // 转换为数组
+            let orders = Array.from(allOrdersMap.values());
 
             const user = JSON.parse(sessionStorage.getItem('user'));
             const urlParams = new URLSearchParams(window.location.search);
             const filterUsername = sessionStorage.getItem('filterUsername');
 
-            // 应用过滤逻辑（与现有逻辑保持一致）
+            // 应用过滤逻辑
             if (urlParams.get('filter') === 'user' && filterUsername) {
                 fetch('/shipment-dashboard/data/users.json')
                     .then(res => res.json())
@@ -167,7 +166,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         })
         .catch(error => {
             console.error('Error loading or processing orders:', error);
-            // 可以在这里显示一个错误消息给用户
             document.getElementById('ordersList').innerHTML = `<p>加载订单失败：${error.message}</p>`;
         });
     }
