@@ -64,7 +64,23 @@
       "totalPrice": "总价",
       "customerCode": "客户代码",
       "updateStatus": "更新状态",
-      "cancelOrder": "取消订单"
+      "cancelOrder": "取消订单",
+      "missingOrderId": "缺少订单ID",
+      "permissionError": "您没有权限查看此订单",
+      "orderNotFound": "订单不存在",
+      "loadError": "加载订单详情失败",
+      "basicInfo": "基本信息",
+      "currentStatus": "当前状态",
+      "productInfo": "产品信息",
+      "totalPrice": "总金额",
+      "deliveryInfo": "配送信息",
+      "shippingInfo": "物流信息",
+      "currentLocation": "当前位置",
+      "shippingTimeline": "物流轨迹",
+      "updateLocation": "更新当前位置",
+      "addLocationNode": "添加物流节点",
+      "edit": "编辑",
+      "delete": "删除"
     }
   },
   "en": {
