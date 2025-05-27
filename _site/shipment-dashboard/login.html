@@ -18,7 +18,39 @@
 <body>
   <main class="container">
     <script>
-document.addEventListener('DOMContentLoaded', function() {
+let translations = null;
+let currentLang = localStorage.getItem('language') || 'zh';
+
+async function loadTranslations() {
+    try {
+        const response = await fetch('/shipment-dashboard/data/translations.json');
+        translations = await response.json();
+        updateUILanguage();
+    } catch (error) {
+        console.error('Error loading translations:', error);
+    }
+}
+
+function updateUILanguage() {
+    const t = translations[currentLang].login;
+    document.querySelector('h1').textContent = t.title;
+    document.querySelector('label[for="username"]').innerHTML = `<span class="icon">&#128100;</span> ${t.username}`;
+    document.querySelector('label[for="password"]').innerHTML = `<span class="icon">&#128274;</span> ${t.password}`;
+    document.querySelector('label[for="role"]').innerHTML = `<span class="icon">&#128188;</span> ${t.role}`;
+    document.querySelector('select#role option[value="trader"]').textContent = t.trader;
+    document.querySelector('select#role option[value="customer"]').textContent = t.customer;
+    document.querySelector('button[type="submit"]').textContent = t.loginButton;
+}
+
+function changeLanguage(lang) {
+    currentLang = lang;
+    localStorage.setItem('language', lang);
+    updateUILanguage();
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadTranslations();
+    
     // 如果已经登录，直接跳转到运单列表页面
     const user = JSON.parse(sessionStorage.getItem('user'));
     if (user) {
@@ -52,7 +84,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     username: user.username,
                     role: user.role,
                     name: user.name,
-                    customerCode: user.customerCode || null
+                    customerCode: user.customerCode || null,
+                    language: currentLang
                 };
 
                 // 保存用户信息到sessionStorage
@@ -61,10 +94,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 跳转到订单列表页面
                 window.location.href = '/shipment-dashboard/orders.html';
             } else {
-                showError('用户名或密码错误，或所选角色不正确');
+                showError(translations[currentLang].login.error);
             }
         } catch (error) {
-            showError('登录过程中发生错误，请稍后重试');
+            showError(translations[currentLang].login.error);
             console.error('Login error:', error);
         }
     });
@@ -89,6 +122,12 @@ document.addEventListener('DOMContentLoaded', function() {
               <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f69a.svg" alt="logo" />
           </div>
           <h1>运单管理系统</h1>
+          <div class="language-selector">
+              <button onclick="changeLanguage('zh')" class="lang-btn">中文</button>
+              <button onclick="changeLanguage('en')" class="lang-btn">English</button>
+              <button onclick="changeLanguage('hi')" class="lang-btn">हिंदी</button>
+              <button onclick="changeLanguage('th')" class="lang-btn">ไทย</button>
+          </div>
           <form id="loginForm" class="login-form">
               <div class="form-group">
                   <label for="username"><span class="icon">&#128100;</span> 用户名</label>
@@ -155,6 +194,24 @@ document.addEventListener('DOMContentLoaded', function() {
     font-size: 2rem;
     font-weight: 700;
     letter-spacing: 2px;
+}
+.language-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+.lang-btn {
+    padding: 6px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    background: #f6f8fa;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+.lang-btn:hover {
+    background: #e1e4e8;
+    border-color: #0366d6;
 }
 .login-form {
     display: flex;
@@ -224,6 +281,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     .login-box h1 {
         font-size: 1.2rem;
+    }
+    .language-selector {
+        flex-wrap: wrap;
+        justify-content: center;
     }
 }
 </style>

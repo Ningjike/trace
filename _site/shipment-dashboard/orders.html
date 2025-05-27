@@ -18,7 +18,40 @@
 <body>
   <main class="container">
     <script>
-document.addEventListener('DOMContentLoaded', function() {
+let translations = null;
+let currentLang = 'zh';
+
+async function loadTranslations() {
+    try {
+        const response = await fetch('/shipment-dashboard/data/translations.json');
+        translations = await response.json();
+        const user = JSON.parse(sessionStorage.getItem('user'));
+        currentLang = user?.language || localStorage.getItem('language') || 'zh';
+        updateUILanguage();
+    } catch (error) {
+        console.error('Error loading translations:', error);
+    }
+}
+
+function updateUILanguage() {
+    const t = translations[currentLang].orders;
+    document.querySelector('h1').innerHTML = `<span class="icon">&#128179;</span> ${t.title}`;
+    document.getElementById('backToLoginBtn').textContent = t.logout;
+    
+    // 更新表格标题
+    const headers = document.querySelectorAll('th');
+    if (headers.length > 0) {
+        headers[0].textContent = t.orderNumber;
+        headers[1].textContent = t.customer;
+        headers[2].textContent = t.status;
+        headers[3].textContent = t.createTime;
+        headers[4].textContent = t.actions;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadTranslations();
+    
     const user = JSON.parse(sessionStorage.getItem('user'));
     if (!user || (user.role !== 'trader' && user.role !== 'customer')) {
         window.location.href = '/shipment-dashboard/shipments.html';
@@ -30,12 +63,12 @@ document.addEventListener('DOMContentLoaded', function() {
     navMenu.className = 'nav-menu';
     if (user.role === 'trader') {
         navMenu.innerHTML = `
-            <a href="/shipment-dashboard/orders.html" class="active"><span class="icon">&#128179;</span> 订单管理</a>
-            <a href="/shipment-dashboard/user_list.html"><span class="icon">&#128100;</span> 用户列表</a>
+            <a href="/shipment-dashboard/orders.html" class="active"><span class="icon">&#128179;</span> ${translations[currentLang].orders.title}</a>
+            <a href="/shipment-dashboard/user_list.html"><span class="icon">&#128100;</span> ${translations[currentLang].users.title}</a>
         `;
     } else {
         navMenu.innerHTML = `
-            <a href="/shipment-dashboard/orders.html" class="active"><span class="icon">&#128179;</span> 订单列表</a>
+            <a href="/shipment-dashboard/orders.html" class="active"><span class="icon">&#128179;</span> ${translations[currentLang].orders.title}</a>
         `;
     }
     document.body.insertBefore(navMenu, document.body.firstChild);
@@ -46,14 +79,14 @@ document.addEventListener('DOMContentLoaded', function() {
         buttonContainer.className = 'order-btn-group';
         
         const createOrderBtn = document.createElement('button');
-        createOrderBtn.textContent = '创建新订单';
+        createOrderBtn.textContent = translations[currentLang].orders.createNewOrder;
         createOrderBtn.className = 'btn-create';
         createOrderBtn.onclick = function() {
             window.location.href = '/shipment-dashboard/create_order.html';
         };
         
         const userListBtn = document.createElement('button');
-        userListBtn.textContent = '用户列表';
+        userListBtn.textContent = translations[currentLang].orders.userList;
         userListBtn.className = 'btn-create btn-secondary';
         userListBtn.onclick = function() {
             window.location.href = '/shipment-dashboard/user_list.html';
@@ -100,14 +133,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displayOrders(orders) {
         const ordersList = document.getElementById('ordersList');
+        const t = translations[currentLang].orders;
+        
         if (orders.length === 0) {
             ordersList.innerHTML = `
                 <div class="empty-state">
                     <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f6d2.svg" alt="empty" class="empty-img"/>
-                    <p>暂无订单</p>
+                    <p>${t.emptyState}</p>
                     ${user.role === 'customer' ? `
                         <button onclick="window.location.href='/shipment-dashboard/create_order.html'" class="btn-create">
-                            创建新订单
+                            ${t.createOrder}
                         </button>
                     ` : ''}
                 </div>
@@ -120,30 +155,22 @@ document.addEventListener('DOMContentLoaded', function() {
             <table class="orders-table">
                 <thead>
                     <tr>
-                        <th>订单号</th>
-                        <th>产品名称</th>
-                        <th>数量</th>
-                        <th>总价</th>
-                        <th>状态</th>
-                        <th>创建时间</th>
-                        <th>期望送达日期</th>
-                        <th>客户代码</th>
-                        <th>操作</th>
+                        <th>${t.orderNumber}</th>
+                        <th>${t.customer}</th>
+                        <th>${t.status}</th>
+                        <th>${t.createTime}</th>
+                        <th>${t.actions}</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${orders.map(order => `
                         <tr>
-                            <td><span class="order-id">${order.id}</span></td>
-                            <td>${order.productName}</td>
-                            <td>${order.quantity}</td>
-                            <td>¥${(order.quantity * order.unitPrice).toFixed(2)}</td>
+                            <td>${order.id}</td>
+                            <td>${order.customerName}</td>
                             <td><span class="status-badge status-${order.status}">${getStatusText(order.status)}</span></td>
                             <td>${formatDate(order.createdAt)}</td>
-                            <td>${formatDate(order.expectedDeliveryDate)}</td>
-                            <td>${order.customerCode || '-'}</td>
                             <td>
-                                <a href="/shipment-dashboard/order_details.html?id=${order.id}" class="btn-view">查看详情</a>
+                                <a href="/shipment-dashboard/order_details.html?id=${order.id}" class="btn-view">${t.view}</a>
                             </td>
                         </tr>
                     `).join('')}
@@ -156,18 +183,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getStatusText(status) {
         const statusMap = {
-            'pending': '待处理',
-            'processing': '处理中',
-            'shipped': '已发货',
-            'delivered': '已送达',
-            'cancelled': '已取消'
+            'pending': translations[currentLang].orders.statusPending,
+            'processing': translations[currentLang].orders.statusProcessing,
+            'shipped': translations[currentLang].orders.statusShipped,
+            'delivered': translations[currentLang].orders.statusDelivered,
+            'cancelled': translations[currentLang].orders.statusCancelled
         };
         return statusMap[status] || status;
     }
 
     function formatDate(dateString) {
         if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('zh-CN');
+        return new Date(dateString).toLocaleDateString(currentLang === 'zh' ? 'zh-CN' : currentLang);
     }
 
     document.getElementById('backToLoginBtn').onclick = function() {

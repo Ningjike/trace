@@ -18,7 +18,45 @@
 <body>
   <main class="container">
     <script>
+let translations = null;
+let currentLang = 'zh';
+
+async function loadTranslations() {
+    try {
+        const response = await fetch('/shipment-dashboard/data/translations.json');
+        translations = await response.json();
+        const user = JSON.parse(sessionStorage.getItem('user'));
+        currentLang = user?.language || localStorage.getItem('language') || 'zh';
+        updateUILanguage();
+    } catch (error) {
+        console.error('Error loading translations:', error);
+    }
+}
+
+function updateUILanguage() {
+    const tOrders = translations[currentLang].orders;
+    const tDetails = translations[currentLang].orderDetails;
+    document.querySelector('h1').innerHTML = `<span class="icon">&#128179;</span> ${tOrders.createNewOrder}`;
+
+    // 表单标签
+    document.querySelector('label[for="customerCode"]').textContent = tOrders.customerCode + '：';
+    document.querySelector('label[for="productName"]').textContent = tDetails.productName + '：';
+    document.querySelector('label[for="quantity"]').textContent = tDetails.quantity + '：';
+    document.querySelector('label[for="unitPrice"]').textContent = tDetails.unitPrice + '：';
+    document.querySelector('label[for="deliveryAddress"]').textContent = tOrders.deliveryAddress + '：';
+    document.querySelector('label[for="contactPerson"]').textContent = tOrders.contactPerson + '：';
+    document.querySelector('label[for="contactPhone"]').textContent = tOrders.contactPhone + '：';
+    document.querySelector('label[for="expectedDeliveryDate"]').textContent = tDetails.expectedDeliveryDate + '：';
+    document.querySelector('label[for="remarks"]').textContent = tOrders.remarks + '：';
+
+    // 按钮
+    document.querySelector('button[type="submit"]').textContent = tOrders.createOrder;
+    document.querySelector('button[type="button"]').textContent = tOrders.cancel;
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
+    await loadTranslations();
+    
     const user = JSON.parse(sessionStorage.getItem('user'));
     if (!user || (user.role !== 'trader' && user.role !== 'customer')) {
         window.location.href = '/shipment-dashboard/shipments.html';
@@ -34,11 +72,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             customers = data.users.filter(u => u.role === 'customer');
             // 填充客户选择下拉框
             const customerSelect = document.getElementById('customerCode');
-            customerSelect.innerHTML = '<option value="">请选择客户</option>' +
+            customerSelect.innerHTML = `<option value="">${translations[currentLang].orders.selectCustomer}</option>` +
                 customers.map(c => `<option value="${c.customerCode}" data-contact="${c.name}" data-phone="${c.phone || ''}">${c.name} (${c.customerCode})</option>`).join('');
             // 联系人下拉框
             const contactSelect = document.getElementById('contactPerson');
-            contactSelect.innerHTML = '<option value="">请选择联系人</option>' +
+            contactSelect.innerHTML = `<option value="">${translations[currentLang].orders.selectContact}</option>` +
                 customers.map(c => `<option value="${c.name}" data-code="${c.customerCode}" data-phone="${c.phone || ''}">${c.name}</option>`).join('');
             // 选择联系人时自动填充客户代码和联系电话
             contactSelect.onchange = function() {
@@ -74,7 +112,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         } else {
             customerCode = document.getElementById('customerCode').value;
             if (!customerCode) {
-                alert('请选择客户');
+                alert(translations[currentLang].orders.selectCustomerError);
                 return;
             }
         }

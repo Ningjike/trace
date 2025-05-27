@@ -18,7 +18,40 @@
 <body>
   <main class="container">
     <script>
+let translations = null;
+let currentLang = 'zh';
+
+async function loadTranslations() {
+    try {
+        const response = await fetch('/shipment-dashboard/data/translations.json');
+        translations = await response.json();
+        const user = JSON.parse(sessionStorage.getItem('user'));
+        currentLang = user?.language || localStorage.getItem('language') || 'zh';
+        updateUILanguage();
+    } catch (error) {
+        console.error('Error loading translations:', error);
+    }
+}
+
+function updateUILanguage() {
+    const t = translations[currentLang].users;
+    document.querySelector('h1').innerHTML = `<span class="icon">&#128100;</span> ${t.title}`;
+    document.querySelector('.btn-create').textContent = t.createUser;
+    document.querySelector('.btn-back').textContent = t.backToOrders;
+    
+    // 更新表格标题
+    const headers = document.querySelectorAll('th');
+    if (headers.length > 0) {
+        headers[0].textContent = t.username;
+        headers[1].textContent = t.customerCode;
+        headers[2].textContent = t.name;
+        headers[3].textContent = t.actions;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
+    await loadTranslations();
+    
     const user = JSON.parse(sessionStorage.getItem('user'));
     if (!user || user.role !== 'trader') {
         window.location.href = '/shipment-dashboard/orders.html';
@@ -32,26 +65,28 @@ document.addEventListener('DOMContentLoaded', async function() {
         const customers = data.users.filter(u => u.role === 'customer');
         displayUsers(customers);
     } catch (error) {
-        console.error('加载用户列表失败:', error);
+        console.error('Error loading users:', error);
+    }
+});
+
+function displayUsers(users) {
+    const usersList = document.getElementById('usersList');
+    const t = translations[currentLang].users;
+    
+    if (users.length === 0) {
+        usersList.innerHTML = '<div class="empty-state"><p>暂无用户数据</p></div>';
+        return;
     }
 
-    function displayUsers(users) {
-        const usersList = document.getElementById('usersList');
-        
-        if (users.length === 0) {
-            usersList.innerHTML = '<div class="empty-state"><p>暂无用户数据</p></div>';
-            return;
-        }
-
-        const html = `
-            <div class="table-responsive">
+    const html = `
+        <div class="table-responsive">
             <table class="users-table">
                 <thead>
                     <tr>
-                        <th>用户名</th>
-                        <th>客户代码</th>
-                        <th>姓名</th>
-                        <th>操作</th>
+                        <th>${t.username}</th>
+                        <th>${t.customerCode}</th>
+                        <th>${t.name}</th>
+                        <th>${t.actions}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -64,29 +99,28 @@ document.addEventListener('DOMContentLoaded', async function() {
                             <td>${user.customerCode || '-'}</td>
                             <td>${user.name}</td>
                             <td>
-                                <button onclick="viewUserOrders('${user.username}')" class="btn-view">查看订单</button>
+                                <button onclick="viewUserOrders('${user.username}')" class="btn-view">${t.viewOrders}</button>
                             </td>
                         </tr>
                     `).join('')}
                 </tbody>
             </table>
-            </div>
-        `;
-        usersList.innerHTML = html;
-    }
+        </div>
+    `;
+    usersList.innerHTML = html;
+}
 
-    window.viewUserOrders = function(username) {
-        sessionStorage.setItem('filterUsername', username);
-        window.location.href = '/shipment-dashboard/orders.html?filter=user';
-    };
-});
+window.viewUserOrders = function(username) {
+    sessionStorage.setItem('filterUsername', username);
+    window.location.href = '/shipment-dashboard/orders.html?filter=user';
+};
 </script>
 
 <div class="userlist-header">
     <h1><span class="icon">&#128100;</span> 用户列表</h1>
     <div class="userlist-actions">
         <button onclick="window.location.href='/shipment-dashboard/create_user.html'" class="btn-create">创建用户</button>
-        <button onclick="window.location.href='/shipment-dashboard/orders.html'" class="btn-create">返回订单列表</button>
+        <button onclick="window.location.href='/shipment-dashboard/orders.html'" class="btn-back">返回订单列表</button>
         <button onclick="logoutAndGoLogin()" class="btn-logout">退出</button>
     </div>
 </div>
@@ -125,7 +159,7 @@ function logoutAndGoLogin() {
     display: flex;
     gap: 12px;
 }
-.btn-create, .btn-logout {
+.btn-create, .btn-back, .btn-logout {
     padding: 10px 22px;
     border: none;
     border-radius: 4px;
@@ -140,6 +174,13 @@ function logoutAndGoLogin() {
 }
 .btn-create:hover {
     background-color: #0056b3;
+}
+.btn-back {
+    background-color: #6c757d;
+    color: #fff;
+}
+.btn-back:hover {
+    background-color: #5a6268;
 }
 .btn-logout {
     background-color: #dc3545;
@@ -180,58 +221,44 @@ function logoutAndGoLogin() {
     background-color: #f2f7ff;
     transition: background 0.2s;
 }
+
 .user-avatar {
-    display: inline-block;
     width: 32px;
     height: 32px;
-    background: linear-gradient(135deg, #6fb1fc 0%, #4364f7 100%);
-    color: #fff;
+    background: #007bff;
+    color: white;
     border-radius: 50%;
-    text-align: center;
-    line-height: 32px;
-    font-weight: bold;
-    margin-right: 10px;
-    font-size: 1.1em;
-    vertical-align: middle;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-right: 8px;
 }
+
 .user-username {
-    vertical-align: middle;
     font-weight: 500;
-    color: #222;
 }
+
 .btn-view {
-    padding: 7px 16px;
-    background-color: #28a745;
+    padding: 6px 12px;
+    background-color: #007bff;
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 15px;
+    font-size: 14px;
     transition: background 0.2s;
 }
+
 .btn-view:hover {
-    background-color: #218838;
+    background-color: #0056b3;
 }
+
 .empty-state {
     text-align: center;
-    padding: 48px 0;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px #0001;
-    color: #888;
-    font-size: 1.2em;
-    margin-top: 30px;
-}
-@media (max-width: 700px) {
-    .userlist-header, .table-responsive {
-        padding: 10px;
-    }
-    .users-table th, .users-table td {
-        padding: 8px 6px;
-    }
-    .userlist-header h1 {
-        font-size: 1.2rem;
-    }
+    padding: 40px;
+    color: #666;
+    font-size: 16px;
 }
 </style>
   </main>
