@@ -20,7 +20,24 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+let translations = null;
+let currentLang = 'zh';
+
+async function loadTranslations() {
+    try {
+        const response = await fetch('/shipment-dashboard/data/translations.json');
+        translations = await response.json();
+        const user = JSON.parse(sessionStorage.getItem('user'));
+        currentLang = user?.language || localStorage.getItem('language') || 'zh';
+        // 在这里不调用 updateUILanguage，因为大部分文本在 displayOrderDetails 中设置
+    } catch (error) {
+        console.error('Error loading translations:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadTranslations();
+
     const user = JSON.parse(sessionStorage.getItem('user'));
     if (!user || (user.role !== 'trader' && user.role !== 'customer')) {
         window.location.href = '/shipment-dashboard/shipments.html';
@@ -42,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const orderId = urlParams.get('id');
 
         if (!orderId) {
-            document.getElementById('orderDetails').innerHTML = '<p class="error">缺少订单ID</p>';
+            document.getElementById('orderDetails').innerHTML = '<p class="error">' + translations[currentLang].orderDetails.missingOrderId + '</p>';
             return;
         }
 
@@ -52,119 +69,111 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => {
                     if (!response.ok) {
                         console.warn('Could not load /shipment-dashboard/data/orders.json, possibly not found or empty.');
-                        return { orders: [] }; // 加载失败时返回包含空数组的对象
+                        return { orders: [] };
                     }
                     return response.json();
                 })
                 .catch(error => {
                     console.error('Error fetching /shipment-dashboard/data/orders.json:', error);
-                    return { orders: [] }; // 捕获错误时返回包含空数组的对象
+                    return { orders: [] };
                 }),
             Promise.resolve().then(() => {
-                 // 从 localStorage 获取订单数据
                 const localOrders = JSON.parse(localStorage.getItem('orders')) || [];
                 return localOrders;
             })
         ])
         .then(([jsonData, localOrders]) => {
-            let jsonOrders = jsonData.orders || []; // 从对象中取出 orders 数组
+            let jsonOrders = jsonData.orders || [];
 
-            // 合并来自 orders.json 和 localStorage 的订单
             const allOrdersMap = new Map();
             jsonOrders.forEach(order => allOrdersMap.set(order.id, order));
             localOrders.forEach(order => allOrdersMap.set(order.id, order));
 
-            const order = allOrdersMap.get(orderId); // 在合并后的数据中查找目标订单
+            const order = allOrdersMap.get(orderId);
 
             if (order) {
-                // 如果是客户，检查是否是自己的订单
                 if (user.role === 'customer' && order.customerCode !== user.customerCode) {
-                     // 考虑到安全，这里最好显示一个权限不足的提示，而不是直接跳转
-                    document.getElementById('orderDetails').innerHTML = '<p class="error">您没有权限查看此订单</p>';
+                    document.getElementById('orderDetails').innerHTML = '<p class="error">' + translations[currentLang].orderDetails.permissionError + '</p>';
                     return;
                 }
                 displayOrderDetails(order);
             } else {
-                document.getElementById('orderDetails').innerHTML = '<p class="error">订单不存在</p>';
+                document.getElementById('orderDetails').innerHTML = '<p class="error">' + translations[currentLang].orderDetails.orderNotFound + '</p>';
             }
         })
         .catch(error => {
             console.error('Error loading or processing orders:', error);
-            document.getElementById('orderDetails').innerHTML = `<p class="error">加载订单详情失败：${error.message}</p>`;
+            document.getElementById('orderDetails').innerHTML = `<p class="error">${translations[currentLang].orderDetails.loadError}: ${error.message}</p>`;
         });
     }
 
     function displayOrderDetails(order) {
         const orderDetails = document.getElementById('orderDetails');
         const totalAmount = order.quantity * order.unitPrice;
+        const tDetails = translations[currentLang].orderDetails;
+        const tOrders = translations[currentLang].orders;
 
         let statusUpdateHtml = '';
         let deleteBtnHtml = '';
         if (user.role === 'trader') {
             statusUpdateHtml = `
                 <div class="status-update">
-                    <label for="orderStatus">更新状态：</label>
+                    <label for="orderStatus">${tDetails.updateStatus}：</label>
                     <select id="orderStatus" onchange="updateOrderStatus('${order.id}', this.value)">
-                        <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>待处理</option>
-                        <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>处理中</option>
-                        <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>已发货</option>
-                        <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>已送达</option>
-                        <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>已取消</option>
+                        <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>${tOrders.statusPending}</option>
+                        <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>${tOrders.statusProcessing}</option>
+                        <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>${tOrders.statusShipped}</option>
+                        <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>${tOrders.statusDelivered}</option>
+                        <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>${tOrders.statusCancelled}</option>
                     </select>
                 </div>
             `;
-            deleteBtnHtml = `<button onclick="deleteOrder('${order.id}')" class="btn-create" style="background-color:#dc3545;margin-left:10px;">删除订单</button>`;
+            deleteBtnHtml = `<button onclick="deleteOrder('${order.id}')" class="btn-create" style="background-color:#dc3545;margin-left:10px;">${tDetails.cancelOrder}</button>`;
         }
 
-        // 添加物流信息显示
         let shippingInfoHtml = '';
         let updateLocationBtn = '';
         if (user.role === 'trader' && order.status !== 'delivered' && order.status !== 'cancelled') {
-            updateLocationBtn = `<button class='btn-create' style='margin-bottom:10px;' onclick="updateShippingLocation('${order.id}')">更新当前位置</button>`;
+            updateLocationBtn = `<button class='btn-create' style='margin-bottom:10px;' onclick="updateShippingLocation('${order.id}')">${tDetails.updateLocation}</button>`;
         }
-        // 轨迹起点和状态逻辑
         let shippingUpdates = order.shippingUpdates ? [...order.shippingUpdates] : [];
-        // 若无轨迹则补充吉林白城
         if (!shippingUpdates.length) {
             shippingUpdates.unshift({ location: '吉林白城', timestamp: order.createdAt });
         }
-        // 状态为待处理/处理中时，轨迹和当前位置都只显示首节点
         let currentLocation = shippingUpdates[0].location;
         let canEdit = user.role === 'trader' && order.status !== 'cancelled' && order.status !== 'pending' && order.status !== 'processing' && order.status !== 'delivered';
         let canAdd = user.role === 'trader' && order.status !== 'cancelled' && order.status !== 'pending' && order.status !== 'processing' && order.status !== 'delivered';
         if (order.status === 'pending' || order.status === 'processing') {
             shippingUpdates = [shippingUpdates[0]];
         } else {
-            // 其他状态下当前位置为轨迹最后一个点
             currentLocation = shippingUpdates[shippingUpdates.length - 1].location;
         }
-        // 物流轨迹编辑和删除按钮
+
         function getEditBtn(idx) {
-            // 第一个点不可编辑/删除，已取消状态不可编辑/删除
             if (idx === 0 || order.status === 'cancelled') return '';
             let btns = '';
             if (canEdit) {
-                btns += `<button class='btn-secondary' style='margin-left:8px;padding:2px 8px;font-size:12px' onclick="editShippingUpdate('${order.id}',${idx})">编辑</button>`;
-                btns += `<button class='btn-secondary' style='margin-left:4px;padding:2px 8px;font-size:12px;background:#dc3545;color:#fff' onclick="deleteShippingUpdate('${order.id}',${idx})">删除</button>`;
+                btns += `<button class='btn-secondary' style='margin-left:8px;padding:2px 8px;font-size:12px' onclick="editShippingUpdate('${order.id}',${idx})">${tDetails.edit}</button>`;
+                btns += `<button class='btn-secondary' style='margin-left:4px;padding:2px 8px;font-size:12px;background:#dc3545;color:#fff' onclick="deleteShippingUpdate('${order.id}',${idx})">${tDetails.delete}</button>`;
             }
             return btns;
         }
-        // 添加轨迹按钮
+
         let addLocationBtn = '';
         if (canAdd) {
-            addLocationBtn = `<button class='btn-create' style='margin-bottom:10px;' onclick="addShippingLocation('${order.id}')">添加物流节点</button>`;
+            addLocationBtn = `<button class='btn-create' style='margin-bottom:10px;' onclick="addShippingLocation('${order.id}')">${tDetails.addLocationNode}</button>`;
         }
-        // 物流信息显示
+
         shippingInfoHtml = `
             <div class="detail-group">
-                <h3>物流信息</h3>
+                <h3>${tDetails.shippingInfo}</h3>
                 ${addLocationBtn}
                 <div class="detail-item">
-                    <span class="label">当前位置：</span>
+                    <span class="label">${tDetails.currentLocation}：</span>
                     <span class="value">${currentLocation}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="label">物流轨迹：</span>
+                    <span class="label">${tDetails.shippingTimeline}：</span>
                     <div class="shipping-timeline">
                         ${shippingUpdates.map((update, idx) => `
                             <div class="timeline-item">
@@ -189,35 +198,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 ${order.remarks ? `<div class="order-card">${remarksInfoHtml()}</div>` : ''}
             </div>
             <div class="action-buttons">
-                <button onclick="logoutAndGoLogin()" class="btn-create">退出</button>
+                <button onclick="logoutAndGoLogin()" class="btn-create">${tOrders.logout}</button>
                 ${deleteBtnHtml}
             </div>
         `;
         orderDetails.innerHTML = html;
 
         function basicInfoHtml() {
-            return `<h3>基本信息</h3>
-                <div class="detail-item"><span class="label">订单号：</span><span class="value">${order.id}</span></div>
-                <div class="detail-item"><span class="label">创建时间：</span><span class="value">${formatDate(order.createdAt)}</span></div>
-                <div class="detail-item"><span class="label">当前状态：</span><span class="value status-${order.status}">${getStatusText(order.status)}</span></div>
-                <div class="detail-item"><span class="label">客户代码：</span><span class="value">${order.customerCode}</span></div>`;
+            return `<h3>${tDetails.basicInfo}</h3>
+                <div class="detail-item"><span class="label">${tDetails.orderNumber}：</span><span class="value">${order.id}</span></div>
+                <div class="detail-item"><span class="label">${tDetails.createTime}：</span><span class="value">${formatDate(order.createdAt)}</span></div>
+                <div class="detail-item"><span class="label">${tDetails.currentStatus}：</span><span class="value status-${order.status}">${getStatusText(order.status)}</span></div>
+                <div class="detail-item"><span class="label">${tDetails.customerCode}：</span><span class="value">${order.customerCode}</span></div>`;
         }
         function productInfoHtml() {
-            return `<h3>产品信息</h3>
-                <div class="detail-item"><span class="label">产品名称：</span><span class="value">${order.productName}</span></div>
-                <div class="detail-item"><span class="label">数量：</span><span class="value">${order.quantity}</span></div>
-                <div class="detail-item"><span class="label">单价：</span><span class="value">¥${order.unitPrice.toFixed(2)}</span></div>
-                <div class="detail-item"><span class="label">总金额：</span><span class="value highlight">¥${totalAmount.toFixed(2)}</span></div>`;
+            return `<h3>${tDetails.productInfo}</h3>
+                <div class="detail-item"><span class="label">${tDetails.productName}：</span><span class="value">${order.productName}</span></div>
+                <div class="detail-item"><span class="label">${tDetails.quantity}：</span><span class="value">${order.quantity}</span></div>
+                <div class="detail-item"><span class="label">${tDetails.unitPrice}：</span><span class="value">¥${order.unitPrice.toFixed(2)}</span></div>
+                <div class="detail-item"><span class="label">${tDetails.totalPrice}：</span><span class="value highlight">¥${totalAmount.toFixed(2)}</span></div>`;
         }
         function deliveryInfoHtml() {
-            return `<h3>配送信息</h3>
-                <div class="detail-item"><span class="label">收货地址：</span><span class="value">${order.deliveryAddress}</span></div>
-                <div class="detail-item"><span class="label">联系人：</span><span class="value">${order.contactPerson}</span></div>
-                <div class="detail-item"><span class="label">联系电话：</span><span class="value">${order.contactPhone}</span></div>
-                <div class="detail-item"><span class="label">期望送达日期：</span><span class="value">${formatDate(order.expectedDeliveryDate)}</span></div>`;
+            return `<h3>${tDetails.deliveryInfo}</h3>
+                <div class="detail-item"><span class="label">${tOrders.deliveryAddress}：</span><span class="value">${order.deliveryAddress}</span></div>
+                <div class="detail-item"><span class="label">${tOrders.contactPerson}：</span><span class="value">${order.contactPerson}</span></div>
+                <div class="detail-item"><span class="label">${tOrders.contactPhone}：</span><span class="value">${order.contactPhone}</span></div>
+                <div class="detail-item"><span class="label">${tDetails.expectedDeliveryDate}：</span><span class="value">${formatDate(order.expectedDeliveryDate)}</span></div>`;
         }
         function remarksInfoHtml() {
-            return `<h3>备注信息</h3><div class="detail-item remarks"><span class="value">${order.remarks}</span></div>`;
+            return `<h3>${tOrders.remarks}</h3><div class="detail-item remarks"><span class="value">${order.remarks}</span></div>`;
         }
     }
 
@@ -257,7 +266,6 @@ document.addEventListener('DOMContentLoaded', function() {
         let orders = JSON.parse(localStorage.getItem('orders')) || [];
         const orderIndex = orders.findIndex(o => o.id === orderId);
         if (orderIndex !== -1) {
-            // 如果变为已送达，自动追加收货地址
             if (newStatus === 'delivered') {
                 orders[orderIndex].currentLocation = orders[orderIndex].deliveryAddress;
                 orders[orderIndex].shippingUpdates = orders[orderIndex].shippingUpdates || [];
@@ -294,8 +302,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('mapModal').style.display = 'flex';
         setTimeout(() => {
             if (!map) {
-                map = L.map('map').setView([45.6196, 122.8411], 5); // 吉林白城附近
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                map = L.map('map').setView([34.0479, 100.6197], 4);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{z}/{x}/{y}.png', {
                     maxZoom: 18,
                 }).addTo(map);
                 map.on('click', function(e) {
@@ -304,10 +312,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     pickedLatLng = e.latlng;
                 });
             } else {
-                map.setView([45.6196, 122.8411], 5);
+                map.setView([34.0479, 100.6197], 4);
                 if (marker) map.removeLayer(marker);
             }
             pickedLatLng = null;
+            map.invalidateSize();
         }, 100);
         mapCallback = callback;
     }
@@ -315,14 +324,15 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('mapModal').style.display = 'none';
     };
     document.getElementById('mapOkBtn').onclick = async function() {
-        if (!pickedLatLng) { alert('请在地图上选择位置'); return; }
-        // 逆地理编码（用nominatim，简单实现）
+        if (!pickedLatLng) { alert(translations[currentLang].orders.selectLocationError); return; }
         let name = `${pickedLatLng.lat.toFixed(4)},${pickedLatLng.lng.toFixed(4)}`;
         try {
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pickedLatLng.lat}&lon=${pickedLatLng.lng}`);
             const data = await res.json();
             if (data && data.display_name) name = data.display_name;
-        } catch(e) {}
+        } catch(e) {
+             console.error('逆地理编码失败:', e);
+        }
         document.getElementById('mapModal').style.display = 'none';
         if (mapCallback) mapCallback(name);
     };
@@ -334,7 +344,6 @@ document.addEventListener('DOMContentLoaded', function() {
         showMapPicker(function(newLoc) {
             if (newLoc) {
                 orders[orderIndex].shippingUpdates[idx].location = newLoc;
-                // 如果是最后一条，currentLocation也要同步
                 if (idx === orders[orderIndex].shippingUpdates.length - 1) {
                     orders[orderIndex].currentLocation = newLoc;
                 }
@@ -365,10 +374,8 @@ document.addEventListener('DOMContentLoaded', function() {
         let orders = JSON.parse(localStorage.getItem('orders')) || [];
         const orderIndex = orders.findIndex(o => o.id === orderId);
         if (orderIndex === -1) return;
-        // 不能删除第一个节点
         if (idx === 0) return;
         orders[orderIndex].shippingUpdates.splice(idx, 1);
-        // 如果删除的是最后一个节点，currentLocation要同步
         if (idx === orders[orderIndex].shippingUpdates.length) {
             orders[orderIndex].currentLocation = orders[orderIndex].shippingUpdates[orders[orderIndex].shippingUpdates.length - 1].location;
         }
@@ -572,6 +579,41 @@ document.addEventListener('DOMContentLoaded', function() {
     display: flex;
     align-items: center;
     gap: 18px;
+}
+
+#mapModal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.4);
+    align-items: center;
+    justify-content: center;
+}
+
+#mapModal > div {
+    background: #fff;
+    padding: 16px;
+    border-radius: 8px;
+    max-width: 90vw;
+    max-height: 90vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+#map {
+    width: 500px;
+    height: 400px;
+    flex-grow: 1;
+}
+
+#mapModal > div > div:last-child {
+     margin-top: 8px;
+     text-align: right;
 }
 </style> 
   </main>
