@@ -89,17 +89,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     function loadOrders() {
         // Promise.all 并发加载 orders.json 和 localStorage 中的数据
         Promise.all([
-            fetch('/_data/orders.json')
+            fetch('/shipment-dashboard/data/orders.json')
                 .then(response => {
                     if (!response.ok) {
                         // 如果 orders.json 不存在或加载失败，返回空数组，不中断流程
-                        console.warn('Could not load /_data/orders.json, possibly not found or empty. Proceeding with localStorage data.');
+                        console.warn('Could not load /shipment-dashboard/data/orders.json, possibly not found or empty. Proceeding with localStorage data.');
                         return [];
                     }
                     return response.json();
                 })
                 .catch(error => {
-                    console.error('Error fetching /_data/orders.json:', error);
+                    console.error('Error fetching /shipment-dashboard/data/orders.json:', error);
                     // 捕获错误并返回空数组，防止中断 Promise.all
                     return [];
                 }),
